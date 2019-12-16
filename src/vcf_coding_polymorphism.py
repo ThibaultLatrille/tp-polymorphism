@@ -36,8 +36,15 @@ class Cds(object):
         :param position: (Integer) Nucleotide position in the chromosome.
         :return: (Integer) Nucleotide position relative to the CDS.
         """
-        xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-        return 0
+        distance = 0
+        for start, end in self.exons:
+            print(start, end)
+            if (start < position and position < end):
+                distance += + position - start
+                break
+            else:
+                distance += + (end-start)
+        return distance
 
     def snp_type(self, fasta_seq, position, ref_nuc, alt_nuc):
         """
@@ -50,7 +57,31 @@ class Cds(object):
         :return: (String) The classification of the SNP, can be either "NotInCds",
                           "RefDiff", "NotIdentified", "RefStop", "Stop", "Syn" or "NonSyn".
         """
-        xxxxxxxxxxxxxxxxxxxxxxxxxxx
+        print(self.name)
+        print(position)
+        distance = self.nt_position(position)
+        
+        if fasta_seq[distance] != ref_nuc:
+            return "RefDiff"
+        if distance%3==1:
+            codon_ref = {ref_nuc,fasta_seq[distance+1], fasta_seq[distance+2]}
+            codon_alt= {alt_nuc,fasta_seq[distance+1], fasta_seq[distance+2]}
+        elif distance%==2:
+             codon_ref = {fasta_seq[distance-1],ref_nuc, fasta_seq[distance+1]}
+             codon_alt= {fasta_seq[distance-1],alt_nuc, fasta_seq[distance+1]}
+        else:
+             codon_ref = {fasta_seq[distance-2],fasta_seq[distance-1], ref_nuc}
+             codon_alt= {fasta_seq[distance-2],fasta_seq[distance-1], alt_nuc}
+        
+        
+
+
+            
+    
+        
+                
+        
+    
         return "Stop"
 
     def empty_exon(self):
@@ -113,13 +144,14 @@ codontable.update({
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-f', '--fasta', required=True, type=str,
-                        dest="f", metavar="<fasta>",
+    parser.add_argument('-f', '--fasta', required=False,
+                        default="../data/Homo_sapiens.GRCh38.cds.all.fa", 
+                        type=str, dest="f", metavar="<fasta>",
                         help="The relative name of the .fasta file")
-    parser.add_argument('-g', '--gtf', required=True, type=str,
+    parser.add_argument('-g', '--gtf', required=False, default="../data/Homo_sapiens.GRCh38.98.chr.gtf", type=str,
                         dest="g", metavar="<gtf>",
                         help="The relative name of the .gtf file")
-    parser.add_argument('-v', '--vcf', required=True, type=str,
+    parser.add_argument('-v', '--vcf', required=False, default="../data/CDS.vcf", type=str,
                         dest="v", metavar="<vcf>",
                         help="The relative name of the .vcf file")
     args = parser.parse_args()
