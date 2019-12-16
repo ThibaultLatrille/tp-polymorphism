@@ -115,33 +115,31 @@ if __name__ == '__main__':
 
     panel = pd.read_csv("{0}/{1}".format(os.getcwd(), args.panel), sep='\t', usecols=('sample', 'pop'))
 
-    genotypes = dict()
-    for snp_type in ['stop', 'syn', 'nonsyn']:
-        filepath = "{0}/{1}".format(os.getcwd(), getattr(args, snp_type))
-        nb, header = count_comments(filepath)
-        individuals = set(panel['sample']).intersection(header)
-        genotypes[snp_type] = pd.read_csv(filepath, sep='\t', skiprows=nb, names=header,
-                                          converters={k: lambda x: x.count("1") for k in individuals},
-                                          usecols=individuals)
-
     for pop in set(panel['pop']):
-        individuals = panel[panel["pop"] == pop]["sample"]
-        nb_alleles = 2 * len(individuals)
-        print("{0} population with {1} individuals".format(pop, len(individuals)))
+        pop_individuals = panel[panel["pop"] == pop]["sample"]
+        nb_alleles = 2 * len(pop_individuals)
+        print("{0} population with {1} individuals".format(pop, len(pop_individuals)))
 
-        filtered_array = dict()
+        genotypes = dict()
         for snp_type in ['stop', 'syn', 'nonsyn']:
-            df = genotypes[snp_type].filter(items=individuals)
+            filepath = "{0}/{1}".format(os.getcwd(), getattr(args, snp_type))
+            nb, header = count_comments(filepath)
+            individuals = set(pop_individuals).intersection(header)
+            print("Loading {0} SNPs for population {1}".format(snp_type, pop))
+            df = pd.read_csv(filepath, sep='\t', skiprows=nb, names=header,
+                             converters={k: lambda x: x.count("1") for k in individuals},
+                             usecols=individuals)
+
             df_sum = df.sum(axis=1)
             filt_freq = ((0 < df_sum) & (df_sum < nb_alleles * args.cutoff)) | (
                     (nb_alleles * (1 - args.cutoff) < df_sum) & (df_sum < nb_alleles))
-            filtered_array[snp_type] = df[filt_freq].values
+            genotypes[snp_type] = df[filt_freq].values
 
-        stop_epistasis = epistasis(filtered_array['stop'])
-        nbr_stops = len(filtered_array['stop'])
+        stop_epistasis = epistasis(genotypes['stop'])
+        nbr_stops = len(genotypes['stop'])
         if nbr_stops > 1:
-            syn_bootstrap = bootstrap(nbr_stops, filtered_array['syn'])
-            non_syn_bootstrap = bootstrap(nbr_stops, filtered_array['nonsyn'])
+            syn_bootstrap = bootstrap(nbr_stops, genotypes['syn'])
+            non_syn_bootstrap = bootstrap(nbr_stops, genotypes['nonsyn'])
 
             my_dpi = 256
             fig = plt.figure(figsize=(1920 / my_dpi, 1080 / my_dpi), dpi=my_dpi)
