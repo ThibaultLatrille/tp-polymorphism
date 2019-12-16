@@ -40,9 +40,9 @@ class Cds(object):
         return lines
 
 
-def build_dict_cds(data_path, file_name):
+def build_dict_cds(file_name):
     print('Loading GTF file...')
-    gtf_file = open("{0}/{1}".format(data_path, file_name), 'r')
+    gtf_file = open(file_name, 'r')
     dico_cds = dict()
     nf_tr_id = set()
     for gtf_line in gtf_file:
@@ -73,7 +73,6 @@ if __name__ == '__main__':
                         dest="g", metavar="<gtf>",
                         help="The relative name of the .gtf file")
     args = parser.parse_args()
-    path = os.getcwd()
 
     dict_errors_info = {"NotConfirmed": "GTF file: {0} cds have a start or end that could not be confirmed",
                         "EmptyExon": "GTF file: {0} cds have at least one empty track",
@@ -82,9 +81,9 @@ if __name__ == '__main__':
     for error in dict_errors_info:
         dict_errors_cds[error] = []
 
-    dict_cds, not_confirmed_tr = build_dict_cds(path, args.g)
+    dict_cds, not_confirmed_tr = build_dict_cds(args.g)
 
-    bedfile = open("{0}/{1}.bed".format(path, args.g[:-4]), 'w')
+    bedfile = open(args.g[:-4] +".bed", 'w')
     for transcript_id, cds in dict_cds.items():
 
         if transcript_id in not_confirmed_tr:
@@ -114,7 +113,7 @@ if __name__ == '__main__':
     print(error_header)
     print("Errors written in {0}".format(error_filename))
 
-    error_file = open('{0}/{1}'.format(path, error_filename), 'w')
+    error_file = open(error_filename, 'w')
     error_file.write(error_header)
     if nbr_cds_errors > 0:
         for error, list_cds in dict_errors_cds.items():
