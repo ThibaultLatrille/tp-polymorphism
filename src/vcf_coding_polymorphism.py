@@ -23,13 +23,7 @@ class Cds(object):
 
     def add_exon(self, start_exon, end_exon):
         if int(start_exon) <= int(end_exon):
-            if self.strand == "+":
-                self.exons.append((int(start_exon), int(end_exon)))
-            else:
-                self.exons.insert(0, (int(start_exon), int(end_exon)))
-            for i in range(len(self.exons) - 1):
-                if not self.exons[i][1] < self.exons[i + 1][0]:
-                    print("At least one exon is overlapping with an other")
+            self.exons.append((int(start_exon), int(end_exon)))
 
     def nt_position(self, position):
         """
@@ -37,14 +31,43 @@ class Cds(object):
         :return: (Integer) Nucleotide position relative to the CDS.
         """
         distance = 0
-        for start, end in self.exons:
-            print(start, end)
-            if (start < position and position < end):
-                distance += + position - start
-                break
-            else:
-                distance += + (end-start)
-        return distance
+        longueur = 0
+        InCds = False
+        LastCodon = False
+        #donnée du nb d'exons par trancrit, --> when end dernier exon, change état booléen; utiliser length
+
+        if self.strand == "+":
+            for exon, (start, end) in enumerate(self.exons):
+                print(start, end)
+                if exon == len (self.exons)-1:
+                    if position in [end, end-1, end-2]:
+                        LastCodon=True
+                if (start < position and position < end):
+                    distance += position - start + 1
+                    InCds == True
+                    break
+                else:
+                    distance += end - start + 1
+
+        if self.strand == "-":
+            for exon, (start, end) in enumerate(self.exons):
+                print(start, end)
+                if exon == len (self.exons)-1:
+                    if position in [start, start+1, start+2]:
+                        LastCodon=True
+                if (start < position and position < end):
+                    distance += end - position
+                    longueur += position - start
+                    InCds == True
+                else:
+                    if InCds == False :
+                        distance +=  (end-start)
+                    if InCds == True :
+                        longueur +=  (end-start)
+        
+        return [distance, longueur, InCds]
+        
+        
 
     def snp_type(self, fasta_seq, position, ref_nuc, alt_nuc):
         """
@@ -59,30 +82,41 @@ class Cds(object):
         """
         print(self.name)
         print(position)
-        distance = self.nt_position(position)
-        
+        distance, longueur, InCds = self.nt_position(position)
+        if InCds== False:
+            return "NotInCds"
         if fasta_seq[distance] != ref_nuc:
             return "RefDiff"
-        if distance%3==1:
-            codon_ref = {ref_nuc,fasta_seq[distance+1], fasta_seq[distance+2]}
-            codon_alt= {alt_nuc,fasta_seq[distance+1], fasta_seq[distance+2]}
-        elif distance%==2:
-             codon_ref = {fasta_seq[distance-1],ref_nuc, fasta_seq[distance+1]}
-             codon_alt= {fasta_seq[distance-1],alt_nuc, fasta_seq[distance+1]}
-        else:
-             codon_ref = {fasta_seq[distance-2],fasta_seq[distance-1], ref_nuc}
-             codon_alt= {fasta_seq[distance-2],fasta_seq[distance-1], alt_nuc}
-        
-        
+        if alt_nuc not in nucleotides:
+            return "NotIdentified"
 
-
+        if self.strand == "-":
+            ref_nuc = complement[ref_nuc]
+            alt_nuc = complement[alt_nuc]
             
-    
+        if distance%3==1:
+            codon_ref = ref_nuc+fasta_seq[distance+1]+ fasta_seq[distance+2]
+            codon_alt= alt_nuc+fasta_seq[distance+1]+ fasta_seq[distance+2]
+        elif distance%3==2:
+            codon_ref = fasta_seq[distance-1]+ref_nuc+ fasta_seq[distance+1]
+            codon_alt= fasta_seq[distance-1]+alt_nuc+ fasta_seq[distance+1]
+        else:
+            codon_ref = fasta_seq[distance-2]+fasta_seq[distance-1]+ ref_nuc
+            codon_alt= fasta_seq[distance-2]+fasta_seq[distance-1]+ alt_nuc
+                 
+        if codontable[codon_ref] == "X" and not Lastcodon:
+            return "RefStop"
         
-                
-        
-    
-        return "Stop"
+        if codontable[codon_alt] == "X":
+            return "Stop"
+        else:
+            AA_ref = codontable[codon_ref]
+            AA_alt = codontable[codon_alt]
+            
+            if AA_ref == AA_alt:
+                return "Syn"
+            else:
+                return "NonSyn"
 
     def empty_exon(self):
         return sum([1 for exon_len in self.exons_length() if exon_len == 1]) > 0
@@ -141,6 +175,8 @@ codontable.update({
     'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
     'TAC': 'Y', 'TAT': 'Y', 'TAA': 'X', 'TAG': 'X',
     'TGC': 'C', 'TGT': 'C', 'TGA': 'X', 'TGG': 'W'})
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
