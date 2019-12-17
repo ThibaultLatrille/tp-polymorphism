@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-RELEASE_ENSEMBL="94"
-
 WORK_DIR=~/tp-polymorphism/data
 cd ${WORK_DIR}
 
@@ -11,7 +9,7 @@ Annotation=${WORK_DIR}/Homo_sapiens.GRCh38.98
 gunzip ${Annotation}.gtf.gz
 
 # Création du fichier interval (BED)
-gtf_to_bed.py ${Annotation}.gtf
+python3 ../src/gtf_to_bed.py ${Annotation}.gtf
 bedtools sort -i ${Annotation}.bed > ${Annotation}.sorted.bed
 bedtools merge -i ${Annotation}.sorted.bed -c 4,6 -o distinct > ${Annotation}.merged.sorted.bed
 
@@ -24,7 +22,7 @@ gunzip ${Polymorphisme}.vcf.gz
 # Filtrer le fichier VCF avec bedtools et le fichier BED
 bedtools intersect -a ${Polymorphisme}.vcf -b ${Annotation}.bed -header -wb > Total.vcf
 
-  rm ${Polymorphisme}.vcf
+rm ${Polymorphisme}.vcf
 
 ### Reste du Génome
 for n in $(seq 2 22) "X"
@@ -40,22 +38,22 @@ do
   rm ${Polymorphisme}.vcf
 done
 
-
-
 ## Partie II, separation entre polymorphisme synonyme/non-synonyme/stop
 
 # Données de séquences (FASTA)
-wget xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-gunzip xxxxxxxxxxxxxxxxxxxxxxx
+wget ftp://ftp.ensembl.org/pub/release-98/fasta/homo_sapiens/cds/Homo_sapiens.GRCh38.cds.all.fa.gz
+Sequence=${WORK_DIR}/Homo_sapiens.GRCh38.cds.all
+gunzip ${Sequence}.fa.gz
 
 # Séparer le fichier VCF en 3 fichiers
-vcf_coding_polymorphism.py xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+python3 ../src/vcf_coding_polymorphism.py --vcf Total.vcf --fasta ${Sequence}.fa --gtf ${Annotation}.gtf
 
 
 ## Partie III, calcul de sigma2 / Va pour chacune des populations
 
 # Recuper les informations populationnelles
-wget xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
+Panel=${WORK_DIR}/integrated_call_samples_v3.20130502.ALL
 
 # Meta analyse
-vcf_meta_analysis.py xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+python3 ../src/vcf_meta_analysis.py --syn Total.Syn.vcf --nonsyn Total.NonSyn.vcf --stop Total.Stop.vcf --panel ${Panel}.panel
