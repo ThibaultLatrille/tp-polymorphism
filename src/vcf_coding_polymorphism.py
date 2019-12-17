@@ -30,44 +30,39 @@ class Cds(object):
         :param position: (Integer) Nucleotide position in the chromosome.
         :return: (Integer) Nucleotide position relative to the CDS.
         """
-        distance = 0
-        longueur = 0
+        distance = -1
         InCds = False
         LastCodon = False
         #donnée du nb d'exons par trancrit, --> when end dernier exon, change état booléen; utiliser length
 
         if self.strand == "+":
             for exon, (start, end) in enumerate(self.exons):
-                print(start, end)
-                if exon == len (self.exons)-1:
-                    if position in [end, end-1, end-2]:
-                        LastCodon=True
-                if (start < position and position < end):
+                 print(start, end)
+                 if exon == len (self.exons)-1:
+                     if position in [end, end-1, end-2]:
+                         LastCodon=True
+            for start, end in self.exons:
+                if (start <= position and position <= end):
                     distance += position - start + 1
-                    InCds == True
+                    InCds = True
                     break
                 else:
                     distance += end - start + 1
-
-        if self.strand == "-":
+        else:
             for exon, (start, end) in enumerate(self.exons):
-                print(start, end)
-                if exon == len (self.exons)-1:
-                    if position in [start, start+1, start+2]:
-                        LastCodon=True
-                if (start < position and position < end):
-                    distance += end - position
-                    longueur += position - start
-                    InCds == True
+                 print(start, end)
+                 if exon == len (self.exons)-1:
+                     if position in [start, start+1, start+2]:
+                         LastCodon=True
+            for start, end in self.exons:
+                if (start <= position and position <= end):
+                    distance += end - position +1
+                    InCds = True
                 else:
                     if InCds == False :
-                        distance +=  (end-start)
-                    if InCds == True :
-                        longueur +=  (end-start)
+                        distance +=  end-start +1
         
-        return [distance, longueur, InCds]
-        
-        
+        return distance, InCds, LastCodon
 
     def snp_type(self, fasta_seq, position, ref_nuc, alt_nuc):
         """
@@ -82,29 +77,30 @@ class Cds(object):
         """
         print(self.name)
         print(position)
-        distance, longueur, InCds = self.nt_position(position)
-        if InCds== False:
-            return "NotInCds"
-        if fasta_seq[distance] != ref_nuc:
-            return "RefDiff"
-        if alt_nuc not in nucleotides:
-            return "NotIdentified"
-
+        distance, InCds, LastCodon = self.nt_position(position)
+        
         if self.strand == "-":
             ref_nuc = complement[ref_nuc]
             alt_nuc = complement[alt_nuc]
             
-        if distance%3==1:
+        if InCds== False:
+            return "NotInCds"
+        if fasta_seq[distance] != ref_nuc:
+            return "RefDiff"
+        if alt_nuc not in nucleotides or ref_nuc not in nucleotides:
+            return "NotIdentified"
+            
+        if (distance+1)%3==1:
             codon_ref = ref_nuc+fasta_seq[distance+1]+ fasta_seq[distance+2]
             codon_alt= alt_nuc+fasta_seq[distance+1]+ fasta_seq[distance+2]
-        elif distance%3==2:
+        elif (distance+1)%3==2:
             codon_ref = fasta_seq[distance-1]+ref_nuc+ fasta_seq[distance+1]
             codon_alt= fasta_seq[distance-1]+alt_nuc+ fasta_seq[distance+1]
         else:
             codon_ref = fasta_seq[distance-2]+fasta_seq[distance-1]+ ref_nuc
             codon_alt= fasta_seq[distance-2]+fasta_seq[distance-1]+ alt_nuc
                  
-        if codontable[codon_ref] == "X" and not Lastcodon:
+        if codontable[codon_ref] == "X" and not LastCodon:
             return "RefStop"
         
         if codontable[codon_alt] == "X":
@@ -112,7 +108,8 @@ class Cds(object):
         else:
             AA_ref = codontable[codon_ref]
             AA_alt = codontable[codon_alt]
-            
+            if AA_ref == "-" or AA_alt == "-":
+                return "NotIdentified"
             if AA_ref == AA_alt:
                 return "Syn"
             else:
@@ -238,9 +235,11 @@ if __name__ == '__main__':
         snp_types = []
         transcript_id_list = vcf_line[vcf_line.rfind('\t') + 1:-1].split(",")
         for transcript_id in transcript_id_list:
-            snp_types.append(dict_cds[transcript_id].snp_type(dict_fasta[transcript_id], int(pos), ref, alt))
+            cds = dict_cds[transcript_id]
+            snp_types.append(cds.snp_type(dict_fasta[transcript_id], int(pos), ref, alt))
 
-        assert len(snp_types) > 0
+        if len(snp_types) == 0:
+            continue
         if "NotInCds" in snp_types:
             dict_cat_nbr["NotInCds"] += 1
         elif "RefDiff" in snp_types:
