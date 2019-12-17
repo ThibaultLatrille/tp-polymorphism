@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import pandas as pd
 import numpy as np
+from random import *
 import matplotlib.pyplot as plt
 import argparse
 import os
@@ -63,8 +64,31 @@ def epistasis(array):
     :param array: (2-d array of float) SNPs are in rows, individuals in columns.
     :return: (Float) Epistasis = sigma2 / Va.
     """
-    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    return 1.0
+    """
+    Etapes :
+    Va :
+    1/ Calculer la variance pour chaque ligne
+    2/ Sommer tout ça verticalement
+    
+    Sigma²
+    3/ Sommer toutes les lignes pour chaque colonne / variants pour chaque individu
+    4/ Calculer la variance de ces sommes
+    
+    5/ Calcul du ratio
+    """
+    Va=0
+    nb_snp,nb_indiv=np.shape(array)
+    for i in range(nb_snp):
+        Va = Va + np.var(array[i, :])
+
+    Sommes=np.zeros(nb_indiv)
+    for j in range(nb_indiv):
+        Sommes[j] = np.sum(array[:, j])
+    Sigma2 = np.var(Sommes)
+
+    Epistasis = Sigma2/Va
+
+    return Epistasis
 
 
 def bootstrap(nbr_variants, array, bootstrap_repetition=1000):
@@ -75,8 +99,22 @@ def bootstrap(nbr_variants, array, bootstrap_repetition=1000):
     :param bootstrap_repetition: (Integer) The number of random sample to draw.
     :return: (List of float) Epistasis computed for each random sample.
     """
-    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    return [1.0] * bootstrap_repetition
+    """
+    1/ Faire le tirage/rééchantillonnage
+        Choisir les lignes des SNPs élus
+        Intégrer ces lignes dans le tableau d'échantillonnage de SNPs
+    2/ Faire tourner epistasis dessus
+    3/ Stocker tout ça dans un vecteur (Distribution)
+    """
+    Distribution = np.zeros(bootstrap_repetition)
+    for iteration in range(bootstrap_repetition):
+        Echantillon = np.zeros((nbr_variants, len(array[0, :])))
+        Positions = np.random.choice(len(array), nbr_variants, replace=False)
+        for i in range(nbr_variants):
+            Echantillon[i, :] = array[Positions[i], :]
+        Distribution[iteration] = epistasis(Echantillon)
+
+    return list(Distribution)
 
 
 def p_value(bootstrap_values, value):
@@ -157,9 +195,9 @@ if __name__ == '__main__':
             plt.title('{0} {1},\n p-value={2:3g} ({3} alleles up to a minor allele count of {4})'.format(
                 len(individuals), dico_name[pop], p_val, nbr_stops, args.cutoff), fontsize=8)
             bins = 50
-            syn_hist, _, _ = plt.hist(syn_bootstrap, bins, density=1, facecolor=BLUE,
+            syn_hist, _, _ = plt.hist(syn_bootstrap, bins, facecolor=BLUE,
                                       alpha=0.4, label='Synonymous (10,000 resampling)')
-            non_syn_hist, _, _ = plt.hist(non_syn_bootstrap, bins, density=1, facecolor=GREEN,
+            non_syn_hist, _, _ = plt.hist(non_syn_bootstrap, bins, facecolor=GREEN,
                                           alpha=0.4, label='Non-Synonymous (10,000 resampling)')
             y_max = 1.2 * max((max(syn_hist), max(non_syn_hist)))
             plt.ylim((0, y_max))
